@@ -35,7 +35,7 @@ export default function ManageDataPlans() {
 
     setUploading(true)
     try {
-      const resText = await api.uploadDataPlans(fd)
+      const resText = await api.uploadDataPlans(file)
       const message = typeof resText === 'string' ? resText : resText.message
       setMsg(message || '✅ Upload successful')
       await mutate() // Refresh data

@@ -118,7 +118,6 @@ export default function AdminDashboard() {
 
   const tabs = [
     { name: 'Dashboard', icon: <Home className="w-4 h-4 mr-2" /> },
-    { name: 'Payments', icon: <CreditCard className="w-4 h-4 mr-2" /> },
     { name: 'WalletTransactions', icon: <Wallet className="w-4 h-4 mr-2" /> },
     { name: 'DataPlans', icon: <Layers className="w-4 h-4 mr-2" /> },
     { name: 'Subvendors', icon: <UserCheck className="w-4 h-4 mr-2" /> },
