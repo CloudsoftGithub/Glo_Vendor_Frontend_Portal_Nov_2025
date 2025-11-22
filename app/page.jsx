@@ -245,7 +245,7 @@ export default function App() {
                   href="/customer_signup"
                   className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-xl shadow-blue-600/30 active:scale-[.98] flex items-center justify-center gap-2 text-lg"
                 >
-                  Get Started for Free
+                  Customer Login
                   <ChevronRight size={20} />
                 </Link>
                 <Link
@@ -355,6 +355,7 @@ export default function App() {
     </div>
   );
 }
+
 
 // Helper component for the animated arrow
 const ArrowDownAnimated = () => (

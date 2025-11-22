@@ -1,114 +1,135 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/components/AuthProvider'
-import toast, { Toaster } from 'react-hot-toast'
-import api, { saveAuth } from '@/lib/api'
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/AuthProvider";
+import toast, { Toaster } from "react-hot-toast";
+import api, { saveAuth } from "@/lib/api";
 
 export default function MultiRoleLogin() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [role, setRole] = useState('AGGREGATOR')
-  const [submitting, setSubmitting] = useState(false)
-  const router = useRouter()
-  const { login } = useAuth()
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("AGGREGATOR"); // Default role
+  const [submitting, setSubmitting] = useState(false);
+  const router = useRouter();
+  const { login } = useAuth();
 
   async function handleSubmit(e) {
-    e.preventDefault()
-    setSubmitting(true)
-    const toastId = toast.loading(`🔐 Logging in as ${role.toLowerCase()}...`)
+    e.preventDefault();
+    setSubmitting(true);
+    const toastId = toast.loading(`🔐 Logging in as ${role.toLowerCase()}...`);
 
     try {
-      let response
+      // 1. Clear any old session data immediately to prevent conflicts
+      localStorage.removeItem("subvendorId");
+      localStorage.removeItem("aggregatorId");
+      localStorage.removeItem("retailerId");
+      localStorage.removeItem("token");
+
+      let response;
 
       switch (role) {
-        case 'AGGREGATOR':
-          response = await api.aggregatorLogin({ email: email.trim(), password })
-          break
-        case 'SUBVENDOR':
-          response = await api.subvendorLogin({ email: email.trim(), password })
-          break
-        case 'RETAILER':
-          response = await api.retailerLogin({ email: email.trim(), password })
-          break
+        case "AGGREGATOR":
+          response = await api.aggregatorLogin({
+            email: email.trim(),
+            password,
+          });
+          break;
+        case "SUBVENDOR":
+          response = await api.subvendorLogin({
+            email: email.trim(),
+            password,
+          });
+          break;
+        case "RETAILER":
+          response = await api.retailerLogin({ email: email.trim(), password });
+          break;
         default:
-          throw new Error('Invalid login role selected')
+          throw new Error("Invalid login role selected");
       }
 
-      const payload = response?.data || response
-      console.log('✅ Normalized payload:', payload)
+      const payload = response?.data || response;
+      console.log("✅ Normalized payload:", payload);
 
+      // -----------------------------------------------------------------
+      // ✅ FIX: Improved Payload Extraction for Token and User ID
+      // The payload?.user check is necessary for the Retailer login endpoint.
+      // -----------------------------------------------------------------
+
+      // 1. Extract Token
       const token =
-        payload?.token ||
-        payload?.accessToken ||
-        payload?.access_token ||
-        null
+        payload?.token || payload?.accessToken || payload?.access_token || null;
 
-      const userEmail =
-        payload?.aggregator?.email ||
-        payload?.subvendor?.email ||
-        payload?.retailer?.email ||
-        payload?.email ||
-        email
+      // 2. Extract User Object (Check for role-specific keys and the generic 'user' key)
+      const userObject =
+        payload?.aggregator ||
+        payload?.subvendor ||
+        payload?.retailer ||
+        payload?.user || // <--- ADDED: Checks for the 'user' key used by RetailerAuthController
+        payload; // Fallback to the top-level payload
 
-      const userId =
-        payload?.aggregator?.id ||
-        payload?.subvendor?.id ||
-        payload?.retailer?.id ||
-        payload?.identifier ||
-        null
+      // 3. Extract User Details
+      const userId = userObject?.id || userObject?.identifier || null;
 
-      const userName =
-        payload?.aggregator?.name ||
-        payload?.subvendor?.businessName ||
-        payload?.retailer?.name ||
-        payload?.businessName ||
-        null
+      const userEmail = userObject?.email || email;
 
-      if (token && userEmail) {
-        // ✅ Save token and normalized user info
-        saveAuth(token, { id: userId, email: userEmail, name: userName, role })
+      const userName = userObject?.name || userObject?.businessName || null;
+
+      // -----------------------------------------------------------------
+      // END FIX
+      // -----------------------------------------------------------------
+
+      if (token && userId) {
+        // ✅ CRITICAL FIX: Save the specific ID key that Profile.jsx looks for
+        if (role === "SUBVENDOR") {
+          localStorage.setItem("subvendorId", userId);
+        } else if (role === "AGGREGATOR") {
+          localStorage.setItem("aggregatorId", userId);
+        } else if (role === "RETAILER") {
+          localStorage.setItem("retailerId", userId);
+        }
+
+        // Standard Auth Saving
+        saveAuth(token, { id: userId, email: userEmail, name: userName, role });
+
+        // Save generic user object
         localStorage.setItem(
-          'user',
+          "user",
           JSON.stringify({ id: userId, email: userEmail, role })
-        )
-        localStorage.setItem('glovendor_identifier', userEmail)
-        localStorage.setItem('glovendor_role', role)
+        );
+        localStorage.setItem("glovendor_role", role);
 
-        // 🔐 Update Auth Context
-        login(token, { id: userId, email: userEmail, name: userName, role })
+        // Update Context
+        login(token, { id: userId, email: userEmail, name: userName, role });
 
         toast.success(`🎉 Welcome, ${userName || userEmail}!`, {
           id: toastId,
           duration: 2000,
-        })
+        });
 
-        // 🚀 Redirect user to their specific dashboard
-        let redirectRoute = '/'
-        if (role === 'AGGREGATOR') redirectRoute = '/aggregator_dashboard'
-        else if (role === 'SUBVENDOR') redirectRoute = '/subvendor_dashboard'
-        else if (role === 'RETAILER') redirectRoute = '/retailer_dashboard'
+        // 🚀 Redirect
+        let redirectRoute = "/";
+        if (role === "AGGREGATOR") redirectRoute = "/aggregator_dashboard";
+        else if (role === "SUBVENDOR") redirectRoute = "/subvendor_dashboard";
+        else if (role === "RETAILER") redirectRoute = "/retailer_dashboard";
 
-        console.log('🔁 Redirecting to:', redirectRoute)
-        router.replace(redirectRoute)
+        console.log("🔁 Redirecting to:", redirectRoute);
+        router.replace(redirectRoute);
       } else {
-        const msg =
-          payload?.message ||
-          payload?.error ||
-          '❌ Invalid credentials or response format'
-        toast.error(msg, { id: toastId })
+        throw new Error(
+          "Login successful, but User ID or Token was missing from response."
+        );
       }
     } catch (err) {
-      console.error('🚨 Login error:', err)
+      console.error("🚨 Login error:", err);
       const msg =
         err?.response?.data?.message ||
         err?.response?.data?.error ||
         err?.message ||
-        'An unexpected error occurred.'
-      toast.error('❌ ' + msg, { id: toastId })
+        "An unexpected error occurred.";
+      toast.error("❌ " + msg, { id: toastId });
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
   }
 
@@ -152,13 +173,13 @@ export default function MultiRoleLogin() {
             type="submit"
             disabled={submitting}
             className={`flex-1 px-3 py-2 text-white font-medium rounded transition ${
-              submitting ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'
+              submitting ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
             }`}
           >
-            {submitting ? 'Logging in...' : 'Login'}
+            {submitting ? "Logging in..." : "Login"}
           </button>
         </div>
       </form>
     </div>
-  )
+  );
 }

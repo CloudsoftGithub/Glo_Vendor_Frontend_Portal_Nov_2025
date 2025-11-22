@@ -152,7 +152,7 @@ export default function RetailerDashboard() {
   // --- Render content based on active tab ---
   const renderContent = () => {
     switch (activeTab) {
-      case 'WalletBalance':
+      case 'Transaction History':
         return <WalletDashboard walletBalance={walletBalance} transactions={transactions} />
       case 'Fund Wallet':
         return <PaymentForm onWalletUpdate={setWalletBalance} />
@@ -196,7 +196,7 @@ export default function RetailerDashboard() {
   const tabs = [
     { name: 'Dashboard', icon: <Home className="w-4 h-4 mr-2" /> },
     { name: 'Fund Wallet', icon: <CreditCard className="w-4 h-4 mr-2" /> },
-    { name: 'WalletBalance', icon: <Wallet className="w-4 h-4 mr-2" /> },
+    { name: 'Transaction History', icon: <Wallet className="w-4 h-4 mr-2" /> },
     { name: 'DataPlans', icon: <Layers className="w-4 h-4 mr-2" /> },
     { name: 'Profile', icon: <User className="w-4 h-4 mr-2" /> },
   ]

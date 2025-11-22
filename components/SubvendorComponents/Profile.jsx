@@ -23,22 +23,59 @@ const formatDate = (dateStr) => {
 
 export default function Profile() {
   const [profile, setProfile] = useState(null)
+  // 1. Add specific loading and error states
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     async function fetchProfile() {
       try {
+        // Reset states on new fetch
+        setLoading(true)
+        setError(null)
+
         const subvendorId = localStorage.getItem('subvendorId')
-        if (!subvendorId) throw new Error('Subvendor ID not found in localStorage')
+        
+        if (!subvendorId) {
+            throw new Error('No Subvendor ID found. Please log in again.')
+        }
+
         const data = await api.getSubvendorById(subvendorId)
         setProfile(data)
       } catch (err) {
         console.error('Failed to fetch profile:', err)
+        // 2. Capture the error message to display to the user
+        setError(err.message || 'Failed to load profile data.')
+      } finally {
+        // 3. Ensure loading stops whether the request succeeds or fails
+        setLoading(false)
       }
     }
+
     fetchProfile()
   }, [])
 
-  if (!profile) return <p className="text-center py-4">Loading profile...</p>
+  // 4. Handle the Error State in UI
+  if (error) {
+    return (
+      <div className="text-center py-10 text-red-600 bg-white p-6 rounded shadow max-w-xl mx-auto mt-6">
+        <h3 className="font-bold text-lg">Error</h3>
+        <p>{error}</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="mt-4 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm text-black"
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
+
+  // 5. Handle Loading State
+  if (loading) return <p className="text-center py-4">Loading profile...</p>
+  
+  // 6. Handle edge case: Not loading, no error, but profile is still null
+  if (!profile) return <p className="text-center py-4">No profile data available.</p>
 
   return (
     <div className="bg-white p-6 rounded shadow max-w-xl mx-auto mt-6">
